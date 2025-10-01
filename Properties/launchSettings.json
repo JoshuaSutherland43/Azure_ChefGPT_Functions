@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Prog7314_Recipe_LLaMA": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7033",
+      "launchBrowser": false
+    }
+  }
+}
