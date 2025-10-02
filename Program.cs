@@ -14,7 +14,7 @@ var host = new HostBuilder()
     })
     .ConfigureServices((context, services) =>
     {
-        // RapidAPI Client
+        // RapidAPI Client for recipes
         services.AddHttpClient("RapidApiClient", client =>
         {
             var baseUrl = context.Configuration["RECIPE_BASE_URL"];
@@ -31,29 +31,19 @@ var host = new HostBuilder()
             }
         });
 
-        services.AddHttpClient("HuggingFaceClient")
-         .ConfigureHttpClient(client =>
-         {
-             var baseUrl = context.Configuration["HUGGINGFACE_BASE_URL"];
-             if (!string.IsNullOrEmpty(baseUrl))
-                 client.BaseAddress = new Uri(baseUrl);
-
-             var apiKey = context.Configuration["HUGGINGFACE_API_KEY"];
-             if (!string.IsNullOrEmpty(apiKey))
-                 client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
-         })
-         .ConfigurePrimaryHttpMessageHandler(() =>
-         {
-             // Force SocketsHttpHandler with SSL bypass for local dev
-             return new SocketsHttpHandler
-             {
-                 SslOptions = new System.Net.Security.SslClientAuthenticationOptions
-                 {
-                     RemoteCertificateValidationCallback = (sender, certificate, chain, errors) => true
-                 }
-             };
-         });
-
+        // Hugging Face Client for Gradio Space
+        services.AddHttpClient("HuggingFaceClient", client =>
+        {
+            var spaceUrl = context.Configuration["HUGGINGFACE_SPACE_URL"]
+                          ?? "https://samkelo28-chefgpt3.hf.space";
+            
+            client.BaseAddress = new Uri(spaceUrl);
+            client.Timeout = TimeSpan.FromSeconds(120); // Gradio can take time
+            
+            // Standard headers
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+            client.DefaultRequestHeaders.Add("User-Agent", "AzureFunction-ChefGPT/1.0");
+        });
 
         // Caching
         var redisConnection = context.Configuration.GetConnectionString("RedisCache")
@@ -74,7 +64,7 @@ var host = new HostBuilder()
 
         // App services
         services.AddSingleton<IRapidRecipeClient, RapidRecipeClient>();
-        services.AddSingleton<IModelChatClient, ModelChatClient>();
+        services.AddSingleton<ModelChatClient>(); 
     })
     .Build();
 

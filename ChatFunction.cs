@@ -9,10 +9,10 @@ namespace Prog7314_Recipe_LLaMA;
 
 public class ChatFunction
 {
-    private readonly IModelChatClient _modelClient;
+    private readonly ModelChatClient _modelClient;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public ChatFunction(IModelChatClient modelClient)
+    public ChatFunction(ModelChatClient modelClient)
     {
         _modelClient = modelClient;
 
@@ -30,9 +30,17 @@ public class ChatFunction
     {
         try
         {
-
             // Read request body
             var body = await req.ReadAsStringAsync();
+            
+            if (string.IsNullOrEmpty(body))
+            {
+                var bad = req.CreateResponse(HttpStatusCode.BadRequest);
+                bad.Headers.Add("Content-Type", "application/json");
+                await bad.WriteStringAsync("{\"error\":\"Request body is empty\"}");
+                return bad;
+            }
+
             var chatReq = JsonSerializer.Deserialize<ChatQueryRequest>(body, _jsonOptions);
 
             if (chatReq == null || chatReq.Messages.Count == 0)
@@ -43,25 +51,9 @@ public class ChatFunction
                 return bad;
             }
 
-            // Map messages to Hugging Face API format
-            var hfInput = new
-            {
-                inputs = chatReq.Messages.Select(m => new
-                {
-                    role = m.Role.ToString().ToLower(),
-                    content = m.Content
-                }),
-                parameters = new
-                {
-                    temperature = chatReq.Temperature,
-                    max_new_tokens = chatReq.NumPredict
-                }
-            };
-
-            // Query the model through IModelChatClient
+            // Query the model through ModelChatClient
             var result = await _modelClient.QueryModelAsync(new ChatQueryRequest
             {
-
                 Model = chatReq.Model,
                 Messages = chatReq.Messages,
                 Temperature = chatReq.Temperature,
