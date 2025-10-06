@@ -44,15 +44,16 @@ namespace Prog7314_Recipe_LLaMA
             var maxTokens = req.NumPredict > 0 ? req.NumPredict : 1500;
             var temperature = req.Temperature > 0 ? req.Temperature : 0.7f;
 
-            // Step 1: Join the queue - FIXED: Added /gradio_api/ prefix
+            // Use the CORRECT queue API endpoints from your images
             var joinUrl = $"{spaceUrl}/gradio_api/queue/join";
             Console.WriteLine($"Calling ChefGPT API: {joinUrl}");
 
             var sessionHash = Guid.NewGuid().ToString("N").Substring(0, 11);
             
+            // Build join request - use fn_index = 2 (the actual function index)
             var joinRequestBody = new
             {
-                fn_index = 0,
+                fn_index = 2,  // CHANGED: This should be the correct function index
                 session_hash = sessionHash,
                 data = new object[]
                 {
@@ -103,7 +104,7 @@ namespace Prog7314_Recipe_LLaMA
                 return GetFallbackResponse(lastUserMessage, model);
             }
 
-            // Step 2: Poll for results using Server-Sent Events endpoint - FIXED: Added /gradio_api/ prefix
+            // Poll for results using the data endpoint
             var dataUrl = $"{spaceUrl}/gradio_api/queue/data?session_hash={sessionHash}";
             var maxAttempts = 30;
             var delayMs = 1000;
@@ -156,13 +157,11 @@ namespace Prog7314_Recipe_LLaMA
                                     {
                                         Console.WriteLine("Processing complete!");
                                         
-                                        // Extract output data
-                                        if (root.TryGetProperty("output", out var outputElement) &&
-                                            outputElement.TryGetProperty("data", out var dataElement) &&
-                                            dataElement.ValueKind == JsonValueKind.Array &&
-                                            dataElement.GetArrayLength() > 0)
+                                        // Extract output data - FIXED parsing
+                                        if (root.TryGetProperty("output", out var outputElement))
                                         {
-                                            var resultText = dataElement[0].GetString();
+                                            // Try different output formats
+                                            string resultText = ExtractResultText(outputElement);
                                             
                                             if (!string.IsNullOrWhiteSpace(resultText))
                                             {
@@ -186,7 +185,14 @@ namespace Prog7314_Recipe_LLaMA
                                     }
                                     else if (msg == "estimation")
                                     {
-                                        Console.WriteLine("Waiting in queue...");
+                                        if (root.TryGetProperty("rank", out var rankElement))
+                                        {
+                                            Console.WriteLine($"Waiting in queue (position: {rankElement.GetInt32()})...");
+                                        }
+                                        else
+                                        {
+                                            Console.WriteLine("Waiting in queue...");
+                                        }
                                     }
                                 }
                             }
@@ -210,12 +216,80 @@ namespace Prog7314_Recipe_LLaMA
             return GetFallbackResponse(lastUserMessage, model);
         }
 
+        private string ExtractResultText(JsonElement outputElement)
+        {
+            // Try different response formats
+            if (outputElement.ValueKind == JsonValueKind.Object)
+            {
+                // Format 1: {"data": ["result text"]}
+                if (outputElement.TryGetProperty("data", out var dataElement) &&
+                    dataElement.ValueKind == JsonValueKind.Array &&
+                    dataElement.GetArrayLength() > 0)
+                {
+                    return dataElement[0].GetString() ?? string.Empty;
+                }
+                
+                // Format 2: Direct string in output
+                if (outputElement.ValueKind == JsonValueKind.String)
+                {
+                    return outputElement.GetString() ?? string.Empty;
+                }
+            }
+            else if (outputElement.ValueKind == JsonValueKind.Array && outputElement.GetArrayLength() > 0)
+            {
+                // Format 3: Direct array ["result text"]
+                return outputElement[0].GetString() ?? string.Empty;
+            }
+            else if (outputElement.ValueKind == JsonValueKind.String)
+            {
+                // Format 4: Direct string
+                return outputElement.GetString() ?? string.Empty;
+            }
+
+            return string.Empty;
+        }
+
         private ChatResponse GetFallbackResponse(string message, string model)
         {
             var msg = message.ToLower();
             string fallbackText;
 
-            if (msg.Contains("pasta"))
+            if (msg.Contains("burger") || msg.Contains("cheese"))
+            {
+                fallbackText = @"Perfect Cheeseburger Recipe:
+
+INGREDIENTS:
+• 1 lb ground beef (80/20 blend)
+• 4 slices cheddar or American cheese
+• 4 burger buns
+• 1 tbsp vegetable oil
+• Salt and black pepper to taste
+• Optional toppings: lettuce, tomato, onion, pickles, ketchup, mustard
+
+INSTRUCTIONS:
+Step 1: Form the patties - Divide beef into 4 equal portions and gently form into ¾-inch thick patties. Make a slight indentation in the center of each patty to prevent bulging during cooking.
+
+Step 2: Season - Generously season both sides of each patty with salt and pepper.
+
+Step 3: Heat the pan - Heat oil in a large skillet or griddle over medium-high heat until shimmering.
+
+Step 4: Cook the burgers - Place patties in the hot pan and cook for 3-4 minutes without moving until well-browned on the bottom.
+
+Step 5: Flip and add cheese - Flip burgers and cook for another 3-4 minutes for medium. During the last minute of cooking, place a slice of cheese on each patty and cover the pan to melt the cheese.
+
+Step 6: Toast the buns - While cheese is melting, toast the burger buns cut-side down in the pan for 1-2 minutes until golden.
+
+Step 7: Assemble - Place cheeseburgers on bottom buns, add desired toppings, and cover with top buns.
+
+Step 8: Serve immediately with your favorite sides!
+
+PRO TIPS:
+• Don't overwork the meat when forming patties
+• Make the patties slightly larger than your buns as they shrink during cooking
+• Let the burgers rest for 1-2 minutes before serving
+• For medium-rare, cook 3 minutes per side; for well-done, cook 5 minutes per side";
+            }
+            else if (msg.Contains("pasta"))
             {
                 fallbackText = "Quick Pasta Recipe:\n\nStep 1: Boil salted water (10 mins)\nStep 2: Cook pasta according to package (8-10 mins)\nStep 3: Meanwhile, sauté garlic in olive oil (2 mins)\nStep 4: Toss pasta with garlic oil, add parmesan\n\nTip: Save pasta water to adjust sauce consistency!";
             }
