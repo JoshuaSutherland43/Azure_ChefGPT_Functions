@@ -44,16 +44,16 @@ namespace Prog7314_Recipe_LLaMA
             var maxTokens = req.NumPredict > 0 ? req.NumPredict : 1500;
             var temperature = req.Temperature > 0 ? req.Temperature : 0.7f;
 
-            // Use the CORRECT queue API endpoints from your images
+           
             var joinUrl = $"{spaceUrl}/gradio_api/queue/join";
             Console.WriteLine($"Calling ChefGPT API: {joinUrl}");
 
             var sessionHash = Guid.NewGuid().ToString("N").Substring(0, 11);
             
-            // Build join request - use fn_index = 2 (the actual function index)
+           
             var joinRequestBody = new
             {
-                fn_index = 2,  // CHANGED: This should be the correct function index
+                fn_index = 2,  
                 session_hash = sessionHash,
                 data = new object[]
                 {
@@ -104,7 +104,7 @@ namespace Prog7314_Recipe_LLaMA
                 return GetFallbackResponse(lastUserMessage, model);
             }
 
-            // Poll for results using the data endpoint
+            
             var dataUrl = $"{spaceUrl}/gradio_api/queue/data?session_hash={sessionHash}";
             var maxAttempts = 30;
             var delayMs = 1000;
@@ -138,7 +138,7 @@ namespace Prog7314_Recipe_LLaMA
                         
                         if (line.StartsWith("data: "))
                         {
-                            var jsonData = line.Substring(6); // Remove "data: " prefix
+                            var jsonData = line.Substring(6);
                             
                             if (string.IsNullOrWhiteSpace(jsonData)) continue;
 
@@ -157,10 +157,10 @@ namespace Prog7314_Recipe_LLaMA
                                     {
                                         Console.WriteLine("Processing complete!");
                                         
-                                        // Extract output data - FIXED parsing
+                                        // Extract output data
                                         if (root.TryGetProperty("output", out var outputElement))
                                         {
-                                            // Try different output formats
+                                           
                                             string resultText = ExtractResultText(outputElement);
                                             
                                             if (!string.IsNullOrWhiteSpace(resultText))
@@ -208,7 +208,7 @@ namespace Prog7314_Recipe_LLaMA
                     Console.WriteLine($"Polling attempt {attempt + 1} failed: {ex.Message}");
                 }
                 
-                // Increase delay (exponential backoff)
+                // Increase delay 
                 delayMs = Math.Min(delayMs + 500, 3000);
             }
 
