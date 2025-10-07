@@ -38,7 +38,7 @@ var host = new HostBuilder()
                           ?? "https://samkelo28-chefgpt3.hf.space";
             
             client.BaseAddress = new Uri(spaceUrl);
-            client.Timeout = TimeSpan.FromSeconds(120); // Gradio can take time
+            client.Timeout = TimeSpan.FromSeconds(120);
             
             // Standard headers
             client.DefaultRequestHeaders.Add("Accept", "application/json");
