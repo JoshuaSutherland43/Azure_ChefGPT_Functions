@@ -49,14 +49,13 @@ namespace Prog7314_Recipe_LLaMA
 
         public record InstructionStep(int Number, string? Step);
 
-
-
         public class ChatQueryRequest
         {
             public string? Model { get; set; }
             public List<ChatMessage> Messages { get; set; } = new();
             public int NumPredict { get; set; }
             public float Temperature { get; set; }
+            public string? Language { get; set; } // ✅ ADDED: Language parameter
         }
 
         public record ChatMessage(ChatRole Role, string Content);
@@ -68,7 +67,7 @@ namespace Prog7314_Recipe_LLaMA
         {
             public string? Model { get; set; }
             public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-            public object? Recipe { get; set; }
+            public string? Recipe { get; set; } // ✅ CHANGED: from object? to string?
             public bool Done { get; set; }
         }
     }

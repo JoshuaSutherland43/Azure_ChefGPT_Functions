@@ -43,24 +43,25 @@ namespace Prog7314_Recipe_LLaMA
             var model = req.Model ?? "Qwen/Qwen2.5-72B-Instruct";
             var maxTokens = req.NumPredict > 0 ? req.NumPredict : 1500;
             var temperature = req.Temperature > 0 ? req.Temperature : 0.7f;
+            var language = req.Language ?? "English"; // ✅ Use language from request
 
-           
             var joinUrl = $"{spaceUrl}/gradio_api/queue/join";
             Console.WriteLine($"Calling ChefGPT API: {joinUrl}");
 
             var sessionHash = Guid.NewGuid().ToString("N").Substring(0, 11);
             
-           
+            // ✅ FIXED: Include all 5 parameters [message, language, model, maxTokens, temperature]
             var joinRequestBody = new
             {
                 fn_index = 2,  
                 session_hash = sessionHash,
                 data = new object[]
                 {
-                    lastUserMessage,
-                    model,
-                    (double)maxTokens,
-                    (double)temperature
+                    lastUserMessage,    // Parameter 1: User message
+                    language,           // Parameter 2: Language (ADDED!)
+                    model,              // Parameter 3: Model name
+                    (double)maxTokens,  // Parameter 4: Max tokens
+                    (double)temperature // Parameter 5: Temperature
                 }
             };
 
@@ -104,7 +105,7 @@ namespace Prog7314_Recipe_LLaMA
                 return GetFallbackResponse(lastUserMessage, model);
             }
 
-            
+            // Poll for results using SSE
             var dataUrl = $"{spaceUrl}/gradio_api/queue/data?session_hash={sessionHash}";
             var maxAttempts = 30;
             var delayMs = 1000;
@@ -131,7 +132,7 @@ namespace Prog7314_Recipe_LLaMA
                     using var stream = await dataResp.Content.ReadAsStreamAsync();
                     using var reader = new System.IO.StreamReader(stream);
                     
-                    string line;
+                    string? line;
                     while ((line = await reader.ReadLineAsync()) != null)
                     {
                         Console.WriteLine($"SSE Line: {line}");
@@ -160,7 +161,6 @@ namespace Prog7314_Recipe_LLaMA
                                         // Extract output data
                                         if (root.TryGetProperty("output", out var outputElement))
                                         {
-                                           
                                             string resultText = ExtractResultText(outputElement);
                                             
                                             if (!string.IsNullOrWhiteSpace(resultText))
@@ -208,7 +208,7 @@ namespace Prog7314_Recipe_LLaMA
                     Console.WriteLine($"Polling attempt {attempt + 1} failed: {ex.Message}");
                 }
                 
-                // Increase delay 
+                // Increase delay progressively
                 delayMs = Math.Min(delayMs + 500, 3000);
             }
 
